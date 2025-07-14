@@ -1,0 +1,54 @@
+name: 🔁 FastAPI CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: 🧪 Run Unit Tests with Coverage and HTML Report
+      run: |
+        mkdir -p test-results
+        pytest tests/ \
+          --cov=main \
+          --cov-report=term \
+          --cov-report=html:test-results/htmlcov \
+          --html=test-results/report.html
+
+    - name: 📎 Upload Test Report Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: pytest-html-and-coverage
+        path: test-results/
+
+    - name: 🚀 Start FastAPI server
+      run: |
+        nohup uvicorn main:app --host 0.0.0.0 --port 8000 > server.log 2>&1 &
+        sleep 10
+
+    - name: ✅ Test / endpoint with curl
+      run: |
+        curl --fail http://localhost:8000 || (echo "❌ Server did not respond!" && exit 1)
+
+    - name: 📎 Upload server log
+      uses: actions/upload-artifact@v4
+      with:
+        name: server-log
+        path: server.log
